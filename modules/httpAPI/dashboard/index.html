@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>TrafficAlerted</title>
+    <style>
+        .dataTable {
+            width: 100%;
+            font-family: Arial, Helvetica, sans-serif;
+            border-collapse: collapse;
+        }
+
+        .dataTable td,
+        .dataTable th {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+
+        .dataTable tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        .dataTable tr:hover {
+            background-color: #ddd;
+        }
+
+        .dataTable th {
+            padding-top: 12px;
+            padding-bottom: 12px;
+            text-align: left;
+            background-color: #c04c09;
+            color: white;
+        }
+
+    </style>
+<style>
+    /* The Modal (background) */
+    .modal {
+        display: none; /* Hidden by default */
+        position: fixed; /* Stay in place */
+        z-index: 1; /* Sit on top */
+        left: 0;
+        top: 0;
+        width: 100%; /* Full width */
+        height: 100%; /* Full height */
+        overflow: auto; /* Enable scroll if needed */
+        background-color: rgb(0,0,0); /* Fallback color */
+        background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+    }
+
+    /* Modal Content/Box */
+    .modal-content {
+        background-color: #fefefe;
+        margin: 15% auto; /* 15% from the top and centered */
+        padding: 20px;
+        border: 1px solid #888;
+        width: 80%; /* Could be more or less, depending on screen size */
+    }
+
+    /* The Close Button */
+    .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+    }
+
+    .close:hover,
+    .close:focus {
+        color: black;
+        text-decoration: none;
+        cursor: pointer;
+    }
+</style>
+</head>
+<h2>TrafficAlerted</h2>
+<div id="myModal" class="modal">
+
+    <!-- Modal content -->
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <p id="modaldata"></p>
+    </div>
+
+</div>
+<div id="tableBox"></div>
+
+<body>
+</body>
+<script>
+    update()
+    let data;
+    function update() {
+        fetch("../active").then(function (response) {
+            return response.json();
+        }).then(function (json) {
+            data = json
+            updateTable()
+        }).catch(function (error) {
+            alert("Error");
+            console.log(error)
+        });
+    }
+
+    function updateTable() {
+        let found = false;
+        let tableHtml = "<table class='dataTable' id='dataTable'><tr><th onclick=\"sortTable(0)\">Event</th><th onclick=\"sortTable(1)\">Source IP</th><th onclick=\"sortTable(2)\">Destination IP</th><th onclick=\"sortTable(3)\">Total MB</th></tr>";
+        for (const key in data) {
+            tableHtml += "<tr>";
+            tableHtml += "<td>" +  data[key]["EventType"] + "</td>";
+            tableHtml += "<td>" +  data[key]["SourceIP"] + "</td>";
+            tableHtml += "<td>" + "<button onclick='viewModal(" + key + ")'>View</button>" + "</td>";
+            tableHtml += "<td>" +  data[key]["TotalBytes"] / 1000000 + "</td>";
+            tableHtml += "</tr>";
+            found = true;
+        }
+        tableHtml  += "</table>Sort the table by clicking on the headers";
+        if (found) {
+            document.getElementById("tableBox").innerHTML = tableHtml;
+        } else {
+            document.getElementById("tableBox").innerHTML = "No events found";
+        }
+    }
+
+
+    var modal = document.getElementById("myModal");
+    var span = document.getElementsByClassName("close")[0];
+    window.onclick = function(event) {
+        if (event.target === modal) {
+            modal.style.display = "none";
+        }
+    }
+    span.onclick = function() {
+        modal.style.display = "none";
+    }
+
+
+
+    function viewModal(key) {
+        modal.style.display = "block";
+        let tableHtml = "<table class='dataTable' id='dataTableModal'><tr><th onclick=\"sortTable(0)\">Destination IP</th><th onclick=\"sortTable(0)\">Total MB</th></tr>";
+        for (const key2 in data[key]["DestinationIP"]) {
+            tableHtml += "<tr>";
+            tableHtml += "<td>" +  data[key]["DestinationIP"][key2]["IP"] + "</td>";
+            tableHtml += "<td>" +  data[key]["DestinationIP"][key2]["Bytes"] / 1000000 + "</td>";
+            tableHtml += "</tr>";
+        }
+        tableHtml  += "</table>";
+        document.getElementById("modaldata").innerHTML = tableHtml;
+    }
+</script>
+<script>
+    function sortTable(n) {
+        let table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
+        table = document.getElementById("dataTable");
+        switching = true;
+        dir = "asc";
+        while (switching) {
+            switching = false;
+            rows = table.rows;
+            for (i = 1; i < (rows.length - 1); i++) {
+                shouldSwitch = false;
+                x = rows[i].getElementsByTagName("TD")[n];
+                y = rows[i + 1].getElementsByTagName("TD")[n];
+                if (dir === "asc") {
+                    if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                } else if (dir === "desc") {
+                    if (x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                }
+            }
+            if (shouldSwitch) {
+                rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                switching = true;
+                switchcount ++;
+            } else {
+                if (switchcount === 0 && dir === "asc") {
+                    dir = "desc";
+                    switching = true;
+                }
+            }
+        }
+    }
+</script>
+</html>
