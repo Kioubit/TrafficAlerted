@@ -23,6 +23,7 @@ The following commandline arguments are required:
 - `NumContactedPorts`: Only applicable if `AnalyzePorts` is true.  If a source IP contacts more than this amount of different ports within `PortInterval` scanning activity is detected.
 - `PortInterval`: Only applicable if `AnalyzePorts` is true. The amount of time in seconds for which `NumContactedPorts` applies
 
+Exclude interfaces from monitoring by creating a file named "excluded-interfaces" in the working directory of the program and add each interface to be excluded on a new line.
 
 ### Building
 #### Manual

@@ -103,7 +103,7 @@
 
     function updateTable() {
         let found = false;
-        let tableHtml = "<table class='dataTable' id='dataTable'><tr><th onclick=\"sortTable(0)\">Event</th><th onclick=\"sortTable(1)\">Source IP</th><th onclick=\"sortTable(2)\">Destination IP</th><th onclick=\"sortTable(3)\">Total MB</th></tr>";
+        let tableHtml = "Sort the table by clicking on the headers<br><table class='dataTable' id='dataTable'><tr><th onclick=\"sortTable(0,'dataTable')\">Event</th><th onclick=\"sortTable(1,'dataTable')\">Source IP</th><th onclick=\"sortTable(2,'dataTable')\">Destination IP</th><th onclick=\"sortTable(3,'dataTable')\">Total MB</th></tr>";
         for (const key in data) {
             tableHtml += "<tr>";
             tableHtml += "<td>" +  data[key]["EventType"] + "</td>";
@@ -113,7 +113,7 @@
             tableHtml += "</tr>";
             found = true;
         }
-        tableHtml  += "</table>Sort the table by clicking on the headers";
+        tableHtml  += "</table>";
         if (found) {
             document.getElementById("tableBox").innerHTML = tableHtml;
         } else {
@@ -137,7 +137,8 @@
 
     function viewModal(key) {
         modal.style.display = "block";
-        let tableHtml = "<table class='dataTable' id='dataTableModal'><tr><th onclick=\"sortTable(0)\">Destination IP</th><th onclick=\"sortTable(0)\">Total MB</th></tr>";
+
+        let tableHtml = "<b>Source IP: " + data[key]["SourceIP"] + "</b>" + "<br><br><table class='dataTable' id='dataTableModal'><tr><th onclick=\"sortTable(0,'dataTableModal')\">Destination IP</th><th onclick=\"sortTable(1,'dataTableModal')\">Total MB</th></tr>";
         for (const key2 in data[key]["DestinationIP"]) {
             tableHtml += "<tr>";
             tableHtml += "<td>" +  data[key]["DestinationIP"][key2]["IP"] + "</td>";
@@ -149,9 +150,9 @@
     }
 </script>
 <script>
-    function sortTable(n) {
+    function sortTable(n, id) {
         let table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
-        table = document.getElementById("dataTable");
+        table = document.getElementById(id);
         switching = true;
         dir = "asc";
         while (switching) {
