@@ -1,10 +1,12 @@
 package monitor
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"syscall"
 )
 
@@ -19,8 +21,8 @@ var (
 	portCleanupTime          = 1000
 )
 
-var etherType6 = []byte{0x86, 0xdd}
-var etherType4 = []byte{0x08, 0x00}
+var protocolType6 = []byte{0x60}
+var protocolType4 = []byte{0x45}
 
 type eventRaw struct {
 	ipVersion     int
@@ -58,6 +60,20 @@ func Start(conf *UserConfig) {
 	if err != nil {
 		panic(err.Error())
 	}
+
+	exclusionList := make([]string, 0)
+	path, err := os.Getwd()
+	if err == nil {
+		file, err := os.Open(path + "/excluded-interfaces")
+		if err == nil {
+			scanner := bufio.NewScanner(file)
+			for scanner.Scan() {
+				exclusionList = append(exclusionList, scanner.Text())
+			}
+			_ = file.Close()
+		}
+	}
+
 	evs := make(chan *eventRaw, 200)
 	go InitCounter(evs, len(ifaces))
 
@@ -68,7 +84,16 @@ func Start(conf *UserConfig) {
 	}
 
 	for i := range ifaces {
-		go listen(ifaces[i], evs, evs2)
+		add := true
+		for _, s := range exclusionList {
+			if ifaces[i].Name == s {
+				add = false
+				break
+			}
+		}
+		if add {
+			go listen(ifaces[i], evs, evs2)
+		}
 	}
 	log.Println("Start sequence complete")
 }
@@ -78,8 +103,7 @@ func listen(niface net.Interface, evs chan *eventRaw, evs2 chan *PortBox) {
 		Protocol: htons16(syscall.ETH_P_ALL),
 		Ifindex:  niface.Index,
 	}
-
-	fd, err := syscall.Socket(syscall.AF_PACKET, syscall.SOCK_RAW, htons(syscall.ETH_P_ALL))
+	fd, err := syscall.Socket(syscall.AF_PACKET, syscall.SOCK_DGRAM, htons(syscall.ETH_P_ALL))
 	if err != nil {
 		fmt.Println(err.Error())
 	}
@@ -106,23 +130,23 @@ func parse(buf []byte, numRead int, evs chan *eventRaw, evs2 chan *PortBox) {
 		}
 	}()
 
-	etherType := buf[12:14]
-	if bytes.Equal(etherType, etherType6) {
+	protocolType := buf[0:1]
+	if bytes.Equal(protocolType, protocolType6) {
 		src := make([]byte, 16, 16)
 		dst := make([]byte, 16, 16)
-		copy(src, buf[22:38])
-		copy(dst, buf[38:54])
+		copy(src, buf[8:24])
+		copy(dst, buf[24:40])
 		evs <- &eventRaw{6, src, dst, uint32(numRead)}
 		if analyzePorts {
 			data := make([]byte, numRead, numRead)
 			copy(data, buf)
 			evs2 <- &PortBox{ipVersion: 6, sourceIP: &src, data: &data}
 		}
-	} else if bytes.Equal(etherType, etherType4) {
+	} else if bytes.Equal(protocolType, protocolType4) {
 		src := make([]byte, 4, 4)
 		dst := make([]byte, 4, 4)
-		copy(src, buf[26:30])
-		copy(dst, buf[30:34])
+		copy(src, buf[12:16])
+		copy(dst, buf[16:20])
 		evs <- &eventRaw{4, src, dst, uint32(numRead)}
 		if analyzePorts {
 			data := make([]byte, numRead, numRead)

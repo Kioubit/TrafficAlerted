@@ -59,12 +59,12 @@ func assignAnalyze(data *PortBox) {
 	var protocolStart int
 	switch data.ipVersion {
 	case 6:
-		protocol = buf[20:21]
-		protocolStart = 54
+		protocol = buf[6:7]
+		protocolStart = 40
 		// Note: IPv6 may have more nextHeaders
 	case 4:
-		protocol = buf[23:24]
-		protocolStart = 34
+		protocol = buf[9:10]
+		protocolStart = 20
 	default:
 		return
 	}
