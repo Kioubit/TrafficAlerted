@@ -31,6 +31,11 @@
             color: white;
         }
 
+
+       /* div.vis-network {
+            background-color: #3e3e3e;
+        }
+        */
     </style>
 <style>
     /* The Modal (background) */
@@ -82,10 +87,36 @@
     </div>
 
 </div>
+    <button type="button" id="fullscreenBtn">Toggle Full Screen</button>
+    <div  style="height:26em" id="mynetwork"></div>
+
+<script type="text/javascript" src="assets/vis-network.min.js"></script>
+
 <div id="tableBox"></div>
 
 <body>
 </body>
+
+<script type="module">
+    import screenfull from './assets/screenfull/index.js';
+    document.getElementById('fullscreenBtn').addEventListener('click', () => {
+        try {
+            document.getElementsByClassName("vis-network")[0].style.setProperty("background-color","#3e3e3e");
+        } catch (err) {
+            console.log(err);
+        }
+        if (screenfull.isEnabled) {
+            screenfull.request(document.getElementById("mynetwork"));
+            screenfull.on('change', () => {
+                if (!screenfull.isFullscreen) {
+                    document.getElementsByClassName("vis-network")[0].style.removeProperty("background-color");
+                }
+            });
+        }
+    });
+
+</script>
+
 <script>
     update()
     let data;
@@ -94,14 +125,77 @@
             return response.json();
         }).then(function (json) {
             data = json
-            updateTable()
+            updateTable(json)
+            graph(json)
         }).catch(function (error) {
             alert("Error");
             console.log(error)
         });
     }
 
-    function updateTable() {
+    function graph(json) {
+        let id = 1;
+        let listNodes = [];
+        let listConnections = [];
+        for (const key in json) {
+            listNodes.push({ id: id, label: json[key]["SourceIP"], title: "Total:" + json[key]["TotalBytes"]/1000000 + "MB"})
+            id++;
+        }
+
+        // Add all destination IPs as nodes if not already
+        for (const key in json) {
+            for (const key2 in json[key]["DestinationIP"]) {
+                let found =false;
+                for (const n in listNodes) {
+                    if (listNodes[n]["label"] === json[key]["DestinationIP"][key2]["IP"]) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    listNodes.push({ id: id, label: json[key]["DestinationIP"][key2]["IP"], color: 'red' })
+                    id++;
+                }
+            }
+        }
+
+
+
+        // For each Source IP
+        for (const key in json) {
+            // For each destination IP of that source IP
+            for (const key2 in json[key]["DestinationIP"]) {
+                // Get the destination IP
+                for (const b in listNodes) {
+                    // If found destinationIP in listNodes
+                    if (listNodes[b]["label"] === json[key]["DestinationIP"][key2]["IP"]) {
+                        // Get ID of source IP
+                        for (const a in listNodes) {
+                            if (listNodes[a]["label"] === json[key]["SourceIP"]) {
+                                listConnections.push({ from: listNodes[a]["id"], to: listNodes[b]["id"], arrows:{to: true}, label: parseFloat((json[key]["DestinationIP"][key2]["Bytes"]/1000000).toFixed(3)).toString() + "MB"})
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        var nodes = new vis.DataSet(listNodes);
+        var edges = new vis.DataSet(listConnections);
+        // create a network
+        var container = document.getElementById("mynetwork");
+        var djs = {
+            nodes: nodes,
+            edges: edges
+        };
+        var options = {};
+        var network = new vis.Network(container, djs, options);
+
+    }
+
+    function updateTable(data) {
         let found = false;
         let tableHtml = "Sort the table by clicking on the headers<br><table class='dataTable' id='dataTable'><tr><th onclick=\"sortTable(0,'dataTable')\">Event</th><th onclick=\"sortTable(1,'dataTable')\">Source IP</th><th onclick=\"sortTable(2,'dataTable')\">Destination IP</th><th onclick=\"sortTable(3,'dataTable')\">Total MB</th></tr>";
         for (const key in data) {

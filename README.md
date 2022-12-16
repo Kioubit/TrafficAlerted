@@ -1,14 +1,16 @@
 # TrafficAlerted
 
-## Analyze traffic per IP address. Alert on bandwidth limit exceeded or unusual traffic.
+## Monitor transiting traffic. Per-IP alerts on high traffic volume. Network scanning alerts.
 
-- Monitor traffic on all interfaces
-- Monitor traffic based on [source ip, destination ip] pairs
-- Monitor traffic based on [source ip]
-- Alert on bandwidth exceeded
-- Detect port/network scanning activity (Via number of different IPs contacted and Number of ports contacted)
-- No root access required. Capability: CAP_NET_RAW
-- No configuration needed
+![Network Flow Chart](screenshot.png?raw=true)
+
+
+- Monitors traffic on all interfaces
+- Monitors traffic based on source ip and destination ip pairs, generate network flow chart
+- Alerts on bandwidth exceeded
+- Detects port/network scanning activity (Via the number of different IPs contacted and Number of ports contacted)
+- Does not require root access. Only required capability: CAP_NET_RAW
+- Does not require any configuration
 
 ### Commandline arguments
 The following commandline arguments are required:
@@ -23,24 +25,16 @@ The following commandline arguments are required:
 - `NumContactedPorts`: Only applicable if `AnalyzePorts` is true.  If a source IP contacts more than this amount of different ports within `PortInterval` scanning activity is detected.
 - `PortInterval`: Only applicable if `AnalyzePorts` is true. The amount of time in seconds for which `NumContactedPorts` applies
 
-Exclude interfaces from monitoring by creating a file named "excluded-interfaces" in the working directory of the program and add each interface to be excluded on a new line.
+Exclude interfaces from monitoring by creating a file named "excluded-interfaces" in the working directory of the program and adding each interface to be excluded on a new line.
 
 ### Building
 #### Manual
 
 You will need to have GO installed on your system. Then run `make release` and find the binary in the `bin/` directory.
 
-#### Docker
-
-Clone this repository and run `docker build .` to generate a docker image.
-
-
 ***
 
 ### Module Documentation
-
-#### mod_log
-Simple logger to STDOUT for events.
 
 #### mod_httpAPI
 Provides the following http API endpoints on port `8698`:

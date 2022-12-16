@@ -46,8 +46,8 @@ func InitCounter(evs chan *eventRaw, ifaceCount int) {
 func cleanup() {
 	for {
 		time.Sleep(time.Duration(cleanupTime) * time.Second)
-		counterArrayMutex.Lock()
 		counterArrayLocationMutex.Lock()
+		counterArrayMutex.Lock()
 
 		counterArray = make([]*eventBox, counterArraySize, counterArraySize)
 		counterArrayLocation = make(map[string]int)
