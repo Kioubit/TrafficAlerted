@@ -25,9 +25,9 @@
 4) Download and install the config file
     ```` 
     mkdir -p /etc/TrafficAlerted
-    wget https://raw.githubusercontent.com/Kioubit/pndpd/master/TrafficAlerted.conf -P /etc/TrafficAlerted/
+    wget https://raw.githubusercontent.com/Kioubit/TrafficAlerted/master/TrafficAlerted.conf -P /etc/TrafficAlerted/
     ````
-5) Edit the config at ``/etc/pndpd/TrafficAlerted.conf`` and then start the service using ``service TrafficAlerted start``
+5) Edit the config at ``/etc/TrafficAlerted/TrafficAlerted.conf`` and then start the service using ``service TrafficAlerted start``
 
 
 
