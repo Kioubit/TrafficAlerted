@@ -2,7 +2,7 @@
 BINARY=TrafficAlerted
 MODULES=mod_httpAPI
 VERSION=`git describe --tags`
-LDFLAGS=
+LDFLAGS=-ldflags "-X main.Version=${VERSION} -s -w"
 BUILDFLAGS=-trimpath
 
 build:

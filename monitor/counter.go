@@ -44,8 +44,14 @@ func InitCounter(evs chan *eventRaw, ifaceCount int) {
 }
 
 func cleanup() {
+	stopWG.Add(1)
+	defer stopWG.Done()
 	for {
-		time.Sleep(time.Duration(cleanupTime) * time.Second)
+		select {
+		case <-stopChan:
+			return
+		case <-time.After(time.Duration(globalConf.TrafficInterval) * time.Second):
+		}
 		counterArrayLocationMutex.Lock()
 		counterArrayMutex.Lock()
 
@@ -59,8 +65,16 @@ func cleanup() {
 }
 
 func worker(evs chan *eventRaw) {
+	var in *eventRaw
+	stopWG.Add(1)
+	defer stopWG.Done()
 	for {
-		in := <-evs
+		select {
+		case <-stopChan:
+			return
+		case in = <-evs:
+		}
+
 		if len(evs) > 120 {
 			if atomic.CompareAndSwapInt32(&updateDropperRunning, int32(0), int32(1)) {
 				go updateDropper(evs)
@@ -70,24 +84,24 @@ func worker(evs chan *eventRaw) {
 	}
 }
 
-func assign(ipVersion int, sourceIP []byte, destinationIP []byte, numRead uint32) {
+func assign(ipVersion int, sourceIP *[]byte, destinationIP *[]byte, numRead uint32) {
 	counterArrayLocationMutex.RLock()
-	loc := counterArrayLocation[hex.EncodeToString(sourceIP)]
+	loc := counterArrayLocation[hex.EncodeToString(*sourceIP)]
 	counterArrayLocationMutex.RUnlock()
 	if loc == 0 {
 		destinationIPArr := make([]*[]byte, 1)
-		destinationIPArr[0] = &destinationIP
+		destinationIPArr[0] = destinationIP
 		destinationIPCounter := make([]uint32, 1)
 		destinationIPCounter[0] = numRead
 
 		eventInstance := &event{
 			ipVersion:            ipVersion,
-			sourceIP:             sourceIP,
+			sourceIP:             *sourceIP,
 			destinationIP:        destinationIPArr,
 			destinationIPCounter: destinationIPCounter,
 			count:                numRead,
 		}
-		if numRead > numReadTarget {
+		if numRead > globalConf.ByteLimit {
 			if !eventInstance.notified {
 				eventInstance.notified = true
 				go notify(eventInstance)
@@ -97,7 +111,7 @@ func assign(ipVersion int, sourceIP []byte, destinationIP []byte, numRead uint32
 		currentArrPos := int(atomic.AddInt32(&counterArrayPos, 1))
 		counterArray[currentArrPos] = &eventBox{event: eventInstance}
 		counterArrayLocationMutex.Lock()
-		counterArrayLocation[hex.EncodeToString(sourceIP)] = currentArrPos
+		counterArrayLocation[hex.EncodeToString(*sourceIP)] = currentArrPos
 		counterArrayLocationMutex.Unlock()
 		counterArrayMutex.RUnlock()
 		if currentArrPos == counterArraySize-2 {
@@ -111,21 +125,21 @@ func assign(ipVersion int, sourceIP []byte, destinationIP []byte, numRead uint32
 	ev := box.event
 	found := false
 	for i := range ev.destinationIP {
-		if bytes.Equal(*ev.destinationIP[i], destinationIP) {
+		if bytes.Equal(*ev.destinationIP[i], *destinationIP) {
 			ev.destinationIPCounter[i] = Add32(ev.destinationIPCounter[i], numRead)
 			found = true
 			break
 		}
 	}
 	if !found {
-		if !noDestination {
+		if !globalConf.NoDestinations {
 			contactedIPs := len(ev.destinationIPCounter)
 			if contactedIPs < 100 {
-				ev.destinationIP = append(ev.destinationIP, &destinationIP)
+				ev.destinationIP = append(ev.destinationIP, destinationIP)
 				ev.destinationIPCounter = append(ev.destinationIPCounter, 1)
 			}
 
-			if contactedIPs >= numContactedIPs {
+			if globalConf.ContactedIPsAnalyze && contactedIPs >= globalConf.NumberContactedIPs {
 				if !ev.notifiedScanning {
 					ev.notifiedScanning = true
 					notifyScanning(ev)
@@ -136,7 +150,7 @@ func assign(ipVersion int, sourceIP []byte, destinationIP []byte, numRead uint32
 
 	ev.count = Add32(ev.count, numRead)
 
-	if ev.count > numReadTarget {
+	if ev.count > globalConf.ByteLimit {
 		if !ev.notified {
 			ev.notified = true
 			go notify(ev)

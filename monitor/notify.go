@@ -27,7 +27,7 @@ func notifyScanningPort(e PortBox, ports []uint16) {
 	defer func() {
 		recover()
 	}()
-	var src string = ""
+	var src = ""
 	if e.ipVersion == 4 {
 		src = humanIPv4(*e.sourceIP)
 	} else {
@@ -46,6 +46,22 @@ func GetActiveEvents() []HumanEvent {
 		counterArrayMutex.RLock()
 		e := counterArray[i].event
 		if e.notifiedScanning || e.notified {
+			humanEvents = append(humanEvents, convertToHumanEvent(e))
+		}
+		counterArrayMutex.RUnlock()
+	}
+	return humanEvents
+}
+func GetAllEvents() []HumanEvent {
+	defer func() {
+		recover()
+	}()
+	var humanEvents = make([]HumanEvent, 0)
+	max := atomic.LoadInt32(&counterArrayPos)
+	for i := 1; i < int(max); i++ {
+		counterArrayMutex.RLock()
+		e := counterArray[i].event
+		if e.count >= globalConf.ChartMinBytes {
 			humanEvents = append(humanEvents, convertToHumanEvent(e))
 		}
 		counterArrayMutex.RUnlock()
@@ -136,4 +152,8 @@ func ModuleCallback() {
 			go m.StartComplete()
 		}
 	}
+}
+
+func GetCapabilities() UserConfig {
+	return globalConf
 }

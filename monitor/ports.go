@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-//Analyze tcp + udp
-
 var IPPortMapMu sync.Mutex
 var IPPortMap map[string][]uint16
 
@@ -26,8 +24,14 @@ func InitAnalyzePorts(evs chan *PortBox, ifaceCount int) {
 }
 
 func analyzeCleanup() {
+	stopWG.Add(1)
+	defer stopWG.Done()
 	for {
-		time.Sleep(time.Duration(portCleanupTime) * time.Second)
+		select {
+		case <-stopChan:
+			return
+		case <-time.After(time.Duration(globalConf.PortInterval) * time.Second):
+		}
 		IPPortMapMu.Lock()
 		IPPortMap = make(map[string][]uint16)
 		IPPortMapMu.Unlock()
@@ -37,8 +41,15 @@ func analyzeCleanup() {
 var updateDropperAnalyzeRunning int32 = 0
 
 func analyzeWorker(evs chan *PortBox) {
+	stopWG.Add(1)
+	defer stopWG.Done()
+	var data *PortBox
 	for {
-		data := <-evs
+		select {
+		case <-stopChan:
+			return
+		case data = <-evs:
+		}
 		if len(evs) > 120 {
 			if atomic.CompareAndSwapInt32(&updateDropperAnalyzeRunning, int32(0), int32(1)) {
 				go updateDropperAnalyze(evs)
@@ -60,8 +71,8 @@ func assignAnalyze(data *PortBox) {
 	switch data.ipVersion {
 	case 6:
 		protocol = buf[6:7]
+		//Note: IPv6 may have various extension headers that aren't covered here
 		protocolStart = 40
-		// Note: IPv6 may have more nextHeaders
 	case 4:
 		protocol = buf[9:10]
 		protocolStart = 20
@@ -98,7 +109,7 @@ func assignAnalyze(data *PortBox) {
 			IPPortMap[hex.EncodeToString(*data.sourceIP)] = append(arr, dstPortHuman)
 		}
 	}
-	if len(arr) > numContactedPorts {
+	if len(arr) > globalConf.NumContactedPorts {
 		go notifyScanningPort(*data, arr)
 		IPPortMap[hex.EncodeToString(*data.sourceIP)] = []uint16{}
 	}
